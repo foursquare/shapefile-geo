@@ -1,0 +1,7 @@
+#! /bin/sh
+OUT=`./gradlew -q printCp`
+if [ "$?" == "0" ]; then
+  java -cp "$OUT" $@
+else
+  echo "$OUT"
+fi

@@ -1,0 +1,36 @@
+// Establish version and status
+ext.githubProjectName = rootProject.name // Change if github project name is not the same as the root project's name
+group = "com.foursquare.${githubProjectName}"
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+    apply from: file('gradle/buildscript.gradle'), to: buildscript
+}
+
+allprojects {
+    repositories {
+        mavenLocal()
+        maven {
+          url 'http://download.osgeo.org/webdav/geotools'
+        }
+        mavenCentral()
+    }
+}
+
+apply from: file('gradle/check.gradle')
+apply from: file('gradle/license.gradle')
+
+task printCp (dependsOn: 'classes') << {
+    println sourceSets.main.runtimeClasspath.asPath
+}
+
+dependencies {
+    compile 'com.vividsolutions:jts:1.12'
+    compile 'org.geotools:gt-main:9.2'
+    compile 'org.geotools:gt-shapefile:9.2'
+    compile 'org.apache.commons:commons-lang3:3.3.2'
+    testCompile 'junit:junit:4.10'
+}
