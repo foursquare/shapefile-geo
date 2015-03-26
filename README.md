@@ -1,6 +1,6 @@
-# Shapefile Simplifier#
+# Shapefile Geo#
 
-Shapefile-Simplfier is a set of utilities to reduce the size of a Shapefile and quickly access an in-memory representation of it with respect to an property of interest.
+Shapefile-Geo is a set of utilities to reduce the size of a Shapefile and quickly access an in-memory representation of it with respect to an property of interest.
 
 At Foursquare, we use it to quickly retrieve the timezone of a latitude and longitude: timezone reverse geocoding.  A version of this utility is also a component in the Foursquare [twofishes](ttps://github.com/foursquare/twofishes) geocoder.
 
@@ -15,7 +15,7 @@ Here is how one might use this utility for timzone reverse geocoding.
   curl -LO http://efele.net/maps/tz/world/tz_world.zip
   unzip tz_world.zip
   ```
-2. Use the the utility to simplfy the information.  It will divide the map into little rectangular cells.  If all of the features (shapes) in a cell have the same property value (we'll use the `TZID` value), all the shapes within that cell will just be replaced with a simple rectangle.  Water has no `TZID` value, so many coastlines will be simplified away. 
+2. Use the the utility to simplfy the information.  It will divide the map into little rectangular cells.  If all of the features (shapes) in a cell have the same property value (we'll use the `TZID` value), all the shapes within that cell will just be replaced with a simple rectangle.  Water has no `TZID` value, so many coastlines will be simplified away.
 
   ```
   ./compileAndRun com.foursquare.geo.shapes.ShapefileSimplifier world/tz_world.shp tz_world_simplified.shp TZID
@@ -29,15 +29,15 @@ Here is how one might use this utility for timzone reverse geocoding.
   ```
   ./compileAndRun com.foursquare.geo.shapes.SimplifiedShapefileClient tz_world_simplified.shp TZID
   lat,long> 40.74, -74.0
-  America/New_York  
+  America/New_York
   ```
   We can test a more complicated timezone boundary snaking through Kentucky:
   ![kentucky timezone border](http://f.cl.ly/items/2H1e232l36062j2R2A00/Screen%20Shot%202015-03-23%20at%2012.03.10%20AM.png)
-  
+
  ```
   lat,long> 36.182, -84.900
-  America/New_York 
+  America/New_York
   lat,long> 36.182, -84.910
-  America/Chicago 
+  America/Chicago
   ```
 
