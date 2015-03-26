@@ -7,50 +7,14 @@ import com.foursquare.geo.shapes.indexing.CellLocationReference;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.Name;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class LabeledGridSimplifier {
-
-  static class FeatureEntry implements ShapefileUtils.WritableFeature {
-    public CellLocation location;
-    private Map.Entry<String, Object> labelEntry;
-    public Geometry geometry;
-    public FeatureEntry(CellLocation location, Map.Entry<String, Object> labelEntry, Geometry geometry) {
-      this.geometry = geometry;
-      this.labelEntry = labelEntry;
-      this.location = location;
-    }
-
-    @Override
-    public Object getDefaultGeometry(){
-      return geometry;
-    }
-
-    @Override
-    public Object getAttribute(Name name) {
-      if (name.getLocalPart().equals(labelEntry.getKey())) {
-        return labelEntry.getValue();
-      } else if (name.getLocalPart().equals(location.reference.attributeName())) {
-        return location.attributeValue();
-      } else {
-        return null;
-      }
-    }
-
-    public Object getLabel() {
-      return labelEntry.getValue();
-    }
-
-    public Map.Entry<String, Object> getLabelEntry() {
-      return labelEntry;
-    }
-
-    public String toString() {
-      return "FE " + location.toString() + ": " + getLabel().toString();
-    }
-  }
 
   private static class SimplifiedFeatureEntries {
     public final List<FeatureEntry> finished;
@@ -62,36 +26,6 @@ public class LabeledGridSimplifier {
     public SimplifiedFeatureEntries(List<FeatureEntry> finished, List<FeatureEntry> toSimplify) {
       this.finished = finished;
       this.toSimplify = toSimplify;
-    }
-  }
-
-  static class FeatureEntryFactory {
-    private String labelName;
-    private CellLocation initialLocation;
-    private CellLocationReference reference;
-    public FeatureEntryFactory(CellLocationReference reference, String labelName) {
-      this.labelName = labelName;
-      this.reference = reference;
-      this.initialLocation = new CellLocation(reference);
-    }
-
-    public FeatureEntry featureEntry(SimpleFeature feature) {
-      Geometry geom = (Geometry) feature.getDefaultGeometry();
-      CellLocation location = maybeLocationFromFeature(feature);
-      Map.Entry<String, Object> labelEntry = new AbstractMap.SimpleImmutableEntry<String, Object>(
-        labelName,
-        feature.getAttribute(labelName)
-      );
-      return new FeatureEntry(location, labelEntry, geom);
-    }
-
-    private CellLocation maybeLocationFromFeature(SimpleFeature feature) {
-      Object attrValueOpt = feature.getAttribute(reference.attributeName());
-      if (attrValueOpt == null) {
-        return initialLocation;
-      } else {
-        return CellLocation.fromAttributeValue(reference, attrValueOpt);
-      }
     }
   }
 

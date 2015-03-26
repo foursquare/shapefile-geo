@@ -59,7 +59,7 @@ public final class ShapefileSimplifier {
       FeatureSource fs = readDataStore.getFeatureSource();
       ReferencedEnvelope env = fs.getInfo().getBounds();
       CellLocationReference reference = new CellLocationReference(env, new int[] {40, 2, 2, 2});
-      Iterable<LabeledGridSimplifier.FeatureEntry> simpleFeatures = LabeledGridSimplifier.simplify(
+      Iterable<FeatureEntry> simpleFeatures = LabeledGridSimplifier.simplify(
         reference,
         ShapefileUtils.featureIterator(path),
         attrName

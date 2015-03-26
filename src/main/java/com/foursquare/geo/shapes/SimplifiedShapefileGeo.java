@@ -44,12 +44,12 @@ class SimplifiedShapefileGeo {
   }
 
   static class ShapeCell implements Cell {
-    private List<LabeledGridSimplifier.FeatureEntry> featureEntries;
+    private List<FeatureEntry> featureEntries;
     public ShapeCell() {
-      this.featureEntries = new ArrayList<LabeledGridSimplifier.FeatureEntry>();
+      this.featureEntries = new ArrayList<FeatureEntry>();
     }
 
-    public void add(LabeledGridSimplifier.FeatureEntry featureEntry) {
+    public void add(FeatureEntry featureEntry) {
       featureEntries.add(featureEntry);
     }
 
@@ -66,7 +66,7 @@ class SimplifiedShapefileGeo {
     public Object valueForCoordinate(Coordinate coordinate) {
       System.out.println("ShapeCell value for coord: " + coordinate);
       Geometry coordGeom = ShapefileUtils.GEOMETRY_FACTORY.createPoint(coordinate);
-      for (LabeledGridSimplifier.FeatureEntry entry: featureEntries) {
+      for (FeatureEntry entry: featureEntries) {
         if (entry.geometry.covers(coordGeom)) {
           return entry.getLabel();
         }
@@ -113,14 +113,14 @@ class SimplifiedShapefileGeo {
       throw new IOException("Schema has no attribute starting with \"" + CellLocationReference.AttributePrefix + "\"");
     }
 
-    LabeledGridSimplifier.FeatureEntryFactory featureEntryFactory = new LabeledGridSimplifier.FeatureEntryFactory(
+    FeatureEntryFactory featureEntryFactory = new FeatureEntryFactory(
       reference,
       keyAttribute
     );
 
     Map<CellLocation, ShapeCell> cellMap = new HashMap<CellLocation, ShapeCell>();
     for (SimpleFeature feature: ShapefileUtils.featureIterator(dataStore)) {
-      LabeledGridSimplifier.FeatureEntry featureEntry = featureEntryFactory.featureEntry(feature);
+      FeatureEntry featureEntry = featureEntryFactory.featureEntry(feature);
       if (cellMap.get(featureEntry.location) == null) {
         cellMap.put(featureEntry.location, new ShapeCell());
       }
