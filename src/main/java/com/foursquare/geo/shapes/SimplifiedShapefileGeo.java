@@ -15,15 +15,12 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 
-class SimplifiedShapefileGeo {
-  static interface Cell {
-    public Object valueForCoordinate(Coordinate coordinate);
-  }
+public class SimplifiedShapefileGeo {
 
-  static class IndexedShapefile implements Cell {
-    private Map<CellLocation, Cell> cells;
+  static class IndexedShapefile implements IndexedValues {
+    private Map<CellLocation, IndexedValues> cells;
     private CellLocationReference reference;
-    public IndexedShapefile(CellLocationReference reference, Map<CellLocation, Cell> cells) {
+    public IndexedShapefile(CellLocationReference reference, Map<CellLocation, IndexedValues> cells) {
       this.cells = cells;
       this.reference = reference;
     }
@@ -31,11 +28,9 @@ class SimplifiedShapefileGeo {
     public Object valueForCoordinate(Coordinate coordinate) {
       CellLocation location = CellLocation.fromCoordinate(reference, coordinate);
       while (location != null) {
-        System.out.println("location for coord: " + coordinate + ": " + location);
-        Cell cell = cells.get(location);
-        if (cell != null) {
-          System.out.println("found.");
-          return cell.valueForCoordinate(coordinate);
+        IndexedValues indexedValues = cells.get(location);
+        if (indexedValues != null) {
+          return indexedValues.valueForCoordinate(coordinate);
         }
         location = location.parent();
       }
@@ -43,9 +38,9 @@ class SimplifiedShapefileGeo {
     }
   }
 
-  static class ShapeCell implements Cell {
+  static class ShapeIndexedValues implements IndexedValues {
     private List<FeatureEntry> featureEntries;
-    public ShapeCell() {
+    public ShapeIndexedValues() {
       this.featureEntries = new ArrayList<FeatureEntry>();
     }
 
@@ -53,18 +48,17 @@ class SimplifiedShapefileGeo {
       featureEntries.add(featureEntry);
     }
 
-    public Cell simplified() {
+    public IndexedValues simplified() {
       if (featureEntries.isEmpty()) {
-        return SingleValueCell.NO_VALUE;
+        return SingleIndexedValue.NO_VALUE;
       } else if (featureEntries.size() == 1) {
-        return new SingleValueCell(featureEntries.get(0).getLabel());
+        return new SingleIndexedValue(featureEntries.get(0).getLabel());
       } else {
         return this;
       }
     }
     @Override
     public Object valueForCoordinate(Coordinate coordinate) {
-      System.out.println("ShapeCell value for coord: " + coordinate);
       Geometry coordGeom = ShapefileUtils.GEOMETRY_FACTORY.createPoint(coordinate);
       for (FeatureEntry entry: featureEntries) {
         if (entry.geometry.covers(coordGeom)) {
@@ -75,10 +69,10 @@ class SimplifiedShapefileGeo {
     }
   }
 
-  static class SingleValueCell implements Cell {
-    static final SingleValueCell NO_VALUE = new SingleValueCell(null);
+  static class SingleIndexedValue implements IndexedValues {
+    static final SingleIndexedValue NO_VALUE = new SingleIndexedValue(null);
     private Object value;
-    public SingleValueCell(Object value) {
+    public SingleIndexedValue(Object value) {
       this.value = value;
     }
     @Override
@@ -87,7 +81,7 @@ class SimplifiedShapefileGeo {
     }
   }
 
-  public static Cell load(
+  public static IndexedValues load(
      URL file,
      String keyAttribute,
      boolean keepGeometry
@@ -118,24 +112,24 @@ class SimplifiedShapefileGeo {
       keyAttribute
     );
 
-    Map<CellLocation, ShapeCell> cellMap = new HashMap<CellLocation, ShapeCell>();
+    Map<CellLocation, ShapeIndexedValues> cellMap = new HashMap<CellLocation, ShapeIndexedValues>();
     for (SimpleFeature feature: ShapefileUtils.featureIterator(dataStore)) {
       FeatureEntry featureEntry = featureEntryFactory.featureEntry(feature);
       if (cellMap.get(featureEntry.location) == null) {
-        cellMap.put(featureEntry.location, new ShapeCell());
+        cellMap.put(featureEntry.location, new ShapeIndexedValues());
       }
       cellMap.get(featureEntry.location).add(featureEntry);
     }
     dataStore.dispose();
 
     if (!keepGeometry) {
-      Map<CellLocation, Cell> simpleCellMap = new HashMap<CellLocation, Cell>();
-      for (Map.Entry<CellLocation, ShapeCell> entry: cellMap.entrySet()) {
+      Map<CellLocation, IndexedValues> simpleCellMap = new HashMap<CellLocation, IndexedValues>();
+      for (Map.Entry<CellLocation, ShapeIndexedValues> entry: cellMap.entrySet()) {
         simpleCellMap.put(entry.getKey(), entry.getValue().simplified());
       }
       return new IndexedShapefile(reference, simpleCellMap);
     } else {
-      return new IndexedShapefile(reference, Collections.<CellLocation, Cell>unmodifiableMap(cellMap));
+      return new IndexedShapefile(reference, Collections.<CellLocation, IndexedValues>unmodifiableMap(cellMap));
     }
   }
 }

@@ -1,7 +1,9 @@
 // Copyright 2015 Foursquare Labs Inc. All Rights Reserved.
 
-package com.foursquare.geo.shapes;
+package com.foursquare.geo.shapes.example;
 
+import com.foursquare.geo.shapes.IndexedValues;
+import com.foursquare.geo.shapes.SimplifiedShapefileGeo;
 import com.vividsolutions.jts.geom.Coordinate;
 
 import java.io.Console;
@@ -22,7 +24,7 @@ class SimplifiedShapefileClient {
     if (args.length != 2) {
       usage();
     }
-    SimplifiedShapefileGeo.Cell indexedShapes = SimplifiedShapefileGeo.load(
+    IndexedValues indexedShapes = SimplifiedShapefileGeo.load(
       new File(args[0]).toURI().toURL(),
       args[1],
       false

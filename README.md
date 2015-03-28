@@ -15,7 +15,7 @@ Here is how one might use this utility for timzone reverse geocoding.
   curl -LO http://efele.net/maps/tz/world/tz_world.zip
   unzip tz_world.zip
   ```
-2. Use the the utility to simplfy the information.  It will divide the map into little rectangular cells.  If all of the features (shapes) in a cell have the same property value (we'll use the `TZID` value), all the shapes within that cell will just be replaced with a simple rectangle.  Water has no `TZID` value, so many coastlines will be simplified away.
+2. Use the the utility to simplfy the information.  It will divide the map into little rectangular cells.  If all of the features (shapes) in a indexedValues have the same property value (we'll use the `TZID` value), all the shapes within that indexedValues will just be replaced with a simple rectangle.  Water has no `TZID` value, so many coastlines will be simplified away.
 
   ```
   ./compileAndRun com.foursquare.geo.shapes.ShapefileSimplifier world/tz_world.shp tz_world_simplified.shp TZID
@@ -27,7 +27,7 @@ Here is how one might use this utility for timzone reverse geocoding.
 3. We'll load this new Shapefile into the memory of our server.  An example server with a commandline interface is provided so you experiment.
 
   ```
-  ./compileAndRun com.foursquare.geo.shapes.SimplifiedShapefileClient tz_world_simplified.shp TZID
+  ./compileAndRun com.foursquare.geo.shapes.example.SimplifiedShapefileClient tz_world_simplified.shp TZID
   lat,long> 40.74, -74.0
   America/New_York
   ```
