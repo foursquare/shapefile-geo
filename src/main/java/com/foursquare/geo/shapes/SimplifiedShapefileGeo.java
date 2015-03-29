@@ -15,8 +15,16 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 
+/**
+ * The counterpart to {@link com.foursquare.geo.shapes.ShapefileSimplifier}. Once a shapefile
+ * is simplified, it can be loaded and used for querying.  {@link com.foursquare.geo.shapes.SimplifiedShapefileGeo}
+ * shows example usage within an application.
+ */
 public class SimplifiedShapefileGeo {
 
+  private SimplifiedShapefileGeo() {
+
+  }
   static class IndexedShapefile implements IndexedValues {
     private Map<CellLocation, IndexedValues> cells;
     private CellLocationReference reference;
@@ -81,17 +89,32 @@ public class SimplifiedShapefileGeo {
     }
   }
 
+  /**
+   * Loads a simplified Shapefile
+   * @param file the location of the file. Can be a resource on the classpath.
+   * @param labelAttribute the attribute to return in IndexedValues. Pass the same value used for
+   *                       ShapefileSimplifier.
+   * @param simplifySingleLabelCells generally should be true.  when false, checking the
+   *                                 {@link com.foursquare.geo.shapes.IndexedValues#valueForCoordinate}
+   *                                 will always check containment within a feature within that cell.
+   *                                 When true, if all features within a cell have the same value,
+   *                                 that value will always be returned without checking feature
+   *                                 containment.  Pass the same value used for ShapefileSimplifier.
+   * @return an representation of the Shapefile that allows testing the labelAttribute value
+   * at a certain point.
+   * @throws IOException if the file cannot be loaded
+   */
   public static IndexedValues load(
      URL file,
-     String keyAttribute,
-     boolean keepGeometry
+     String labelAttribute,
+     boolean simplifySingleLabelCells
   ) throws IOException {
     ShapefileDataStore dataStore = ShapefileUtils.featureStore(file);
     SimpleFeatureSource featureSource = dataStore.getFeatureSource();
     // determine the key, index, attribute names, and the number and size of the index levels
-    if (featureSource.getSchema().getDescriptor(keyAttribute) == null) {
+    if (featureSource.getSchema().getDescriptor(labelAttribute) == null) {
       dataStore.dispose();
-      throw new IOException("Schema has no attribute named \"" + keyAttribute + "\"");
+      throw new IOException("Schema has no attribute named \"" + labelAttribute + "\"");
     }
 
     CellLocationReference reference = null;
@@ -109,7 +132,7 @@ public class SimplifiedShapefileGeo {
 
     FeatureEntryFactory featureEntryFactory = new FeatureEntryFactory(
       reference,
-      keyAttribute
+      labelAttribute
     );
 
     Map<CellLocation, ShapeIndexedValues> cellMap = new HashMap<CellLocation, ShapeIndexedValues>();
@@ -122,7 +145,7 @@ public class SimplifiedShapefileGeo {
     }
     dataStore.dispose();
 
-    if (!keepGeometry) {
+    if (simplifySingleLabelCells) {
       Map<CellLocation, IndexedValues> simpleCellMap = new HashMap<CellLocation, IndexedValues>();
       for (Map.Entry<CellLocation, ShapeIndexedValues> entry: cellMap.entrySet()) {
         simpleCellMap.put(entry.getKey(), entry.getValue().simplified());

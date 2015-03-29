@@ -20,13 +20,14 @@ public final class ShapefileSimplifier {
   private ShapefileSimplifier() {
 
   }
-  public static void showHelp() {
+  private static void showHelp() {
     System.err.println(
       ShapefileSimplifier.class.getName()
       + "\n\t<original-shapefile.shp>"
       + "\n\t<simplified-shapefile.shp>"
-      + "\n\t<attr-name>"
+      + "\n\t<label-attr>"
       + "\n\t[underscore-separated-levels = 40_2_2_2]"
+      + "\n\t[simplify-single-label-cells = true]"
     );
     System.exit(1);
   }
@@ -37,7 +38,7 @@ public final class ShapefileSimplifier {
     } else {
       String path = args[0];
       String outPath = args[1];
-      String attrName = args[2];
+      String labelAttribute = args[2];
       int [] levelSizes = new int[] {40, 2, 2, 2};
       if (args.length > 3) {
         String[] strLevelSizes = args[3].split("_");
@@ -45,6 +46,10 @@ public final class ShapefileSimplifier {
         for (int i = 0; i < levelSizes.length; ++i) {
           levelSizes[i] = Integer.parseInt(strLevelSizes[i]);
         }
+      }
+      boolean simplifySingleLabelCells = true;
+      if (args.length > 4) {
+        simplifySingleLabelCells = Boolean.parseBoolean(args[4]);
       }
 
       String outPathPrefix = outPath.substring(0, outPath.length() - 3);
@@ -70,10 +75,11 @@ public final class ShapefileSimplifier {
       Iterable<FeatureEntry> simpleFeatures = LabeledGridSimplifier.simplify(
         reference,
         ShapefileUtils.featureIterator(path),
-        attrName
+        labelAttribute,
+        simplifySingleLabelCells
       );
       Map<String, Class<?>> newSchema = new HashMap<String, Class<?>>();
-      newSchema.put(attrName, String.class);
+      newSchema.put(labelAttribute, String.class);
       newSchema.put(reference.attributeName(), reference.attributeType());
       AbstractDataStore dataStore = ShapefileUtils.featureStore(fs, outPath, newSchema);
       ShapefileUtils.addFeatures(dataStore, simpleFeatures);

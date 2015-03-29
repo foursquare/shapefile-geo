@@ -84,6 +84,11 @@ public class CellLocationReference {
     return levelSizes;
   }
 
+  /**
+   * The maximum depth of the location index, equivalent to the maximum
+   * depth of a quadtree-like structure.
+   * @return
+   */
   public int numLevels() {
     return levelSizes.length;
   }

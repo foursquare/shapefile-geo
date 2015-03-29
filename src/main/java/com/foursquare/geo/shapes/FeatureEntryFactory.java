@@ -11,11 +11,11 @@ import java.util.AbstractMap;
 import java.util.Map;
 
 class FeatureEntryFactory {
-  private String labelName;
+  private String labelAttribute;
   private CellLocation initialLocation;
   private CellLocationReference reference;
-  public FeatureEntryFactory(CellLocationReference reference, String labelName) {
-    this.labelName = labelName;
+  public FeatureEntryFactory(CellLocationReference reference, String labelAttribute) {
+    this.labelAttribute = labelAttribute;
     this.reference = reference;
     this.initialLocation = new CellLocation(reference);
   }
@@ -24,8 +24,8 @@ class FeatureEntryFactory {
     Geometry geom = (Geometry) feature.getDefaultGeometry();
     CellLocation location = maybeLocationFromFeature(feature);
     Map.Entry<String, Object> labelEntry = new AbstractMap.SimpleImmutableEntry<String, Object>(
-      labelName,
-      feature.getAttribute(labelName)
+      labelAttribute,
+      feature.getAttribute(labelAttribute)
     );
     return new FeatureEntry(location, labelEntry, geom);
   }

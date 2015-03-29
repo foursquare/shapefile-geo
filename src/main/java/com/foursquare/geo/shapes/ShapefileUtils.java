@@ -33,12 +33,7 @@ public final class ShapefileUtils {
 
   }
 
-  interface WritableFeature {
-    public Object getDefaultGeometry();
-    public Object getAttribute(Name name);
-  }
-
-  public static class WritableSimpleFeature implements WritableFeature {
+  private static class WritableSimpleFeature implements WritableFeature {
     private SimpleFeature simpleFeature;
     public WritableSimpleFeature(SimpleFeature simpleFeature) {
       this.simpleFeature = simpleFeature;
@@ -51,7 +46,12 @@ public final class ShapefileUtils {
     }
   }
 
-  public static final WritableSimpleFeature writableSimpleFeature(SimpleFeature simpleFeature) {
+  /**
+   * Creates a WritableFeature from a SimpleFeature
+   * @param simpleFeature the feature to convert
+   * @return a WritableFeature representing the given SimpleFeature
+   */
+  public static final WritableFeature writableSimpleFeature(SimpleFeature simpleFeature) {
     return new WritableSimpleFeature(simpleFeature);
   }
 
@@ -125,6 +125,12 @@ public final class ShapefileUtils {
     }
   }
 
+  /**
+   * Opens a Shapefile as a FeatureStore
+   * @param path location of .shp file
+   * @return a ShapefileDataStore representing the file
+   * @throws IOException if there is an issue opening the file
+   */
   public static ShapefileDataStore featureStore(String path) throws IOException {
     URL url;
     try {
@@ -136,10 +142,9 @@ public final class ShapefileUtils {
   }
 
   /**
-   * Opens a shapefile as a FeatureSource.
-   *
+   * Opens a Shapefile as a FeatureStore.
    * @param url location of .shp file
-   * @return a SimpleFeatureSource representing the file
+   * @return a ShapefileDataStore representing the file
    * @throws IOException if there is an issue opening the file
    */
   public static ShapefileDataStore featureStore(URL url) throws IOException {
@@ -155,7 +160,7 @@ public final class ShapefileUtils {
   }
 
   /**
-   * Presents a .shp file as iterable collection of SimpleFeatures.
+   * Presents a Shapefile file as iterable collection of SimpleFeatures.
    * @param path location of .shp file
    * @return an iterable collection of SimpleFeatures
    * @throws IOException if there is an issue opening the file
@@ -171,7 +176,7 @@ public final class ShapefileUtils {
   }
 
   /**
-   * Presents a .shp file as iterable collection of SimpleFeatures.
+   * Presents a Shapefile file as iterable collection of SimpleFeatures.
    * @param url location of .shp file
    * @return an iterable collection of SimpleFeatures
    * @throws IOException if there is an issue opening the file
@@ -180,10 +185,24 @@ public final class ShapefileUtils {
     return new ClosingFeatureIterable(url);
   }
 
-  public static Iterable<SimpleFeature> featureIterator(ShapefileDataStore featureStore) throws IOException {
+  /**
+   * Presents a Shapefile file as iterable collection of SimpleFeatures.
+   * It is the responsibility of the caller to .dispose() of the store.
+   * @param featureStore a Shapefile store
+   * @return an iterable collection of SimpleFeatures
+   */
+  public static Iterable<SimpleFeature> featureIterator(ShapefileDataStore featureStore) {
     return new FeatureIterable(featureStore);
   }
 
+  /**
+   * Creates a new Feature Store for writing features
+   * @param originalSource the original feature source, used for bounds and geometry descriptor information
+   * @param path the location where the store will be saved
+   * @param attributeTypes a map of attribute information (name, type) to create the schema
+   * @return an empty store for writing features
+   * @throws IOException if the file cannot be created
+   */
   public static AbstractDataStore featureStore(
     FeatureSource originalSource,
     String path,
@@ -222,6 +241,13 @@ public final class ShapefileUtils {
     return saveStore;
   }
 
+  /**
+   * Adds features to the store.
+   * @param featureStore the store.
+   * @param features the features to write
+   * @throws IOException if there is an issue writing the features
+   * @see com.foursquare.geo.shapes.ShapefileUtils#featureStore
+   */
   public static void addFeatures(AbstractDataStore featureStore, Iterable<? extends WritableFeature> features) throws IOException {
     Transaction transaction = Transaction.AUTO_COMMIT;
     SimpleFeatureType schema = featureStore.getSchema(featureStore.getNames().get(0));

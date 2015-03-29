@@ -8,7 +8,7 @@ import org.opengis.feature.type.Name;
 
 import java.util.Map;
 
-class FeatureEntry implements ShapefileUtils.WritableFeature {
+class FeatureEntry implements WritableFeature {
   public CellLocation location;
   private Map.Entry<String, Object> labelEntry;
   public Geometry geometry;

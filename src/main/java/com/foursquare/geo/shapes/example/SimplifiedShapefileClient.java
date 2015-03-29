@@ -11,7 +11,11 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 
-class SimplifiedShapefileClient {
+/**
+ * Shows example usage of a {@link com.foursquare.geo.shapes.SimplifiedShapefileGeo}
+ * using a simple commandline query interface
+ */
+public class SimplifiedShapefileClient {
   private static void usage() {
     String className = SimplifiedShapefileClient.class.getName();
     System.err.println(

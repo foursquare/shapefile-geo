@@ -14,7 +14,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Simplifies a Shapefile by perfoming two actions:
+ * 1. splits the features of the Shapefile into a grid according to
+ * the reference levelSizes.
+ * 2. if all features within a cell of the grid have the same label
+ * (value of keyName attribute), all features of that cell are replaced by
+ * a simple rectangle of the cell's bounds.
+ */
 public class LabeledGridSimplifier {
+
+  private LabeledGridSimplifier() {
+
+  }
 
   private static class SimplifiedFeatureEntries {
     public final List<FeatureEntry> finished;
@@ -64,7 +76,8 @@ public class LabeledGridSimplifier {
 
   private static SimplifiedFeatureEntries simplifySubFeatures(
     CellLocation location,
-    List<FeatureEntry> coLocatedSubFeatures
+    List<FeatureEntry> coLocatedSubFeatures,
+    boolean simplifySingleLabelCells
   ) {
     List<FeatureEntry> simplifiedSubFeatures = new ArrayList<FeatureEntry>();
 
@@ -75,12 +88,14 @@ public class LabeledGridSimplifier {
 
     // Handle all same (optimization)
     FeatureEntry first = coLocatedSubFeatures.get(0);
-    boolean allSame = true;
-    Object singleLabel = first.getLabel();
-    for (FeatureEntry entry: coLocatedSubFeatures) {
-      if (!entry.getLabel().equals(singleLabel)) {
-        allSame = false;
-        break;
+    boolean allSame = simplifySingleLabelCells;
+    if (simplifySingleLabelCells) {
+      Object singleLabel = first.getLabel();
+      for (FeatureEntry entry : coLocatedSubFeatures) {
+        if (!entry.getLabel().equals(singleLabel)) {
+          allSame = false;
+          break;
+        }
       }
     }
 
@@ -95,7 +110,11 @@ public class LabeledGridSimplifier {
     }
   }
 
-  private static List<FeatureEntry> iterativelySimplify(CellLocationReference reference, List<FeatureEntry> origFeatures) {
+  private static List<FeatureEntry> iterativelySimplify(
+    CellLocationReference reference,
+    List<FeatureEntry> origFeatures,
+    boolean simplifySingleLabelCells
+  ) {
     List<FeatureEntry> finalSimplified = new ArrayList<FeatureEntry>();
     List<FeatureEntry> currentFeatures = origFeatures;
 
@@ -116,7 +135,11 @@ public class LabeledGridSimplifier {
 
       // Reduce subFeatures -> simpleFeatures
       for (Map.Entry<CellLocation, List<FeatureEntry>> colocatedSubFeatures : subFeatures.entrySet()) {
-        SimplifiedFeatureEntries simplified = simplifySubFeatures(colocatedSubFeatures.getKey(), colocatedSubFeatures.getValue());
+        SimplifiedFeatureEntries simplified = simplifySubFeatures(
+          colocatedSubFeatures.getKey(),
+          colocatedSubFeatures.getValue(),
+          simplifySingleLabelCells
+        );
         finalSimplified.addAll(simplified.finished);
         mustIterate.addAll(simplified.toSimplify);
       }
@@ -127,18 +150,32 @@ public class LabeledGridSimplifier {
     return finalSimplified;
   }
 
+  /**
+   * Simplify the set of features.
+   * @param reference the location reference (bounding box, etc)
+   * @param features the input set of features
+   * @param labelAttribute  the attribute on which to key the simplification decision
+   * @param simplifySingleLabelCells when false, no simplification is performed,
+   *                                 location index attributes are generated (for fast lookup when loaded),
+   *                                 and shapes are split by the requested levelSizes,
+   *                                 but when shapes within a cell all share the same label,
+   *                                 the cell will not be replaced with a simple rectangle
+   *                                 see {@link com.foursquare.geo.shapes.SimplifiedShapefileGeo#load} keepGeometry.
+   * @return a set of simplified features
+   */
   public static Iterable<FeatureEntry> simplify(
     CellLocationReference reference,
     Iterable<SimpleFeature> features,
-    String keyName
+    String labelAttribute,
+    boolean simplifySingleLabelCells
   ) {
-    FeatureEntryFactory featureEntryFactory = new FeatureEntryFactory(reference, keyName);
+    FeatureEntryFactory featureEntryFactory = new FeatureEntryFactory(reference, labelAttribute);
     List<FeatureEntry> featureEntries = new ArrayList<FeatureEntry>();
     // TODO(johnG) parallelize
     for(SimpleFeature feature: features) {
       FeatureEntry featureEntry = featureEntryFactory.featureEntry((feature));
       featureEntries.add(featureEntry);
     }
-    return iterativelySimplify(reference, featureEntries);
+    return iterativelySimplify(reference, featureEntries, simplifySingleLabelCells);
   }
 }
