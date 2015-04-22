@@ -3,9 +3,10 @@
 package com.foursquare.geo.shapes.indexing;
 
 import com.vividsolutions.jts.geom.GeometryFactory;
-import org.geotools.factory.Hints;
-import org.geotools.geometry.jts.JTSFactoryFinder;
+import com.vividsolutions.jts.geom.PrecisionModel;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
@@ -15,6 +16,7 @@ import java.util.Arrays;
  * the number of levels and their sizes.
  */
 public class CellLocationReference {
+  static final Logger logger = LoggerFactory.getLogger(CellLocationReference.class);
   private final ReferencedEnvelope envelope;
   private final int[] levelSizes;
   private final int hashCodeValue;
@@ -38,8 +40,10 @@ public class CellLocationReference {
     this.envelope = envelope;
     this.levelSizes = levelSizes.clone();
     this.hashCodeValue = envelope.hashCode() + Arrays.hashCode(this.levelSizes);
-    Hints hints = new Hints(Hints.CRS, envelope.getCoordinateReferenceSystem());
-    geometryFactory = JTSFactoryFinder.getGeometryFactory(hints);
+    geometryFactory = new GeometryFactory(
+      new PrecisionModel(PrecisionModel.FLOATING_SINGLE)
+    );
+    logger.debug("GeometryFactory using PrecisionModel {}", geometryFactory.getPrecisionModel());
   }
 
 

@@ -6,7 +6,10 @@ import com.foursquare.geo.shapes.indexing.CellLocation;
 import com.foursquare.geo.shapes.indexing.CellLocationReference;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
-import org.opengis.feature.simple.SimpleFeature;
+import com.vividsolutions.jts.geom.TopologyException;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,6 +26,7 @@ import java.util.Map;
  * a simple rectangle of the cell's bounds.
  */
 public class LabeledGridSimplifier {
+  static final Logger logger = LoggerFactory.getLogger(LabeledGridSimplifier.class);
 
   private LabeledGridSimplifier() {
 
@@ -41,6 +45,7 @@ public class LabeledGridSimplifier {
     }
   }
 
+  // Equivalent to a "map"
   private static List<FeatureEntry> makeSubFeatures(FeatureEntry featureEntry) {
     List<FeatureEntry> subFeatures = new ArrayList<FeatureEntry>();
     Envelope envelope = featureEntry.location.envelope();
@@ -58,26 +63,42 @@ public class LabeledGridSimplifier {
     int childCellYMin = (int) ((geomEnvelope.getMinY() - startY) / childHeight);
     int childCellYMax = Math.min(numChildCells - 1, (int) ((geomEnvelope.getMaxY() - startY) / childHeight));
 
-    // then just split geometry by the grid intersections, creating a new feature for each
-    for (int longIdx = childCellXMin; longIdx <= childCellXMax; ++longIdx) {
-      for (int latIdx = childCellYMin; latIdx <= childCellYMax; ++latIdx) {
-        CellLocation childLocation = featureEntry.location.child(longIdx, latIdx);
-        Geometry cellEnvelope = childLocation.envelopeGeometry();
-        if (cellEnvelope.intersects(featureEntry.geometry)) {
-          subFeatures.add(new FeatureEntry(
-            childLocation,
-            featureEntry.getLabelEntry(),
-            cellEnvelope.intersection(featureEntry.geometry)));
+    try {
+      // then just split geometry by the grid intersections, creating a new feature for each
+      for (int longIdx = childCellXMin; longIdx <= childCellXMax; ++longIdx) {
+        for (int latIdx = childCellYMin; latIdx <= childCellYMax; ++latIdx) {
+          CellLocation childLocation = featureEntry.location.child(longIdx, latIdx);
+          Geometry cellEnvelope = childLocation.envelopeGeometry();
+          if (cellEnvelope.intersects(featureEntry.geometry)) {
+              subFeatures.add(new FeatureEntry(
+                childLocation,
+                featureEntry.getLabelEntry(),
+                featureEntry.isWeakLabel(),
+                cellEnvelope.intersection(featureEntry.geometry)
+              ));
+
+          }
         }
       }
+    } catch (TopologyException te) {
+      logger.warn("Failed to intersect geometry for entry: " + featureEntry);
+      subFeatures.clear();
+      subFeatures.add(featureEntry);
+    } catch (IllegalArgumentException ie) {
+      logger.warn("Failed to intersect GeometryCollection for entry: " + featureEntry);
+      subFeatures.clear();
+      subFeatures.add(featureEntry);
     }
     return subFeatures;
   }
 
+  // Equivalent to a "reduce"
   private static SimplifiedFeatureEntries simplifySubFeatures(
+    CellLocationReference reference,
     CellLocation location,
     List<FeatureEntry> coLocatedSubFeatures,
-    boolean simplifySingleLabelCells
+    boolean simplifySingleLabelCells,
+    boolean finalRound
   ) {
     List<FeatureEntry> simplifiedSubFeatures = new ArrayList<FeatureEntry>();
 
@@ -89,24 +110,49 @@ public class LabeledGridSimplifier {
     // Handle all same (optimization)
     FeatureEntry first = coLocatedSubFeatures.get(0);
     boolean allSame = simplifySingleLabelCells;
+    boolean allWeak = true;
     if (simplifySingleLabelCells) {
       Object singleLabel = first.getLabel();
       for (FeatureEntry entry : coLocatedSubFeatures) {
         if (!entry.getLabel().equals(singleLabel)) {
           allSame = false;
-          break;
+        }
+        if (!entry.isWeakLabel()) {
+          allWeak = false;
         }
       }
     }
 
-    if (allSame) {
-      simplifiedSubFeatures.add(new FeatureEntry(
-        first.location,
-        first.getLabelEntry(),
-        first.location.envelopeGeometry()));
+    if (allSame && !allWeak) {
+      simplifiedSubFeatures.add(first.sibling(
+        first.getLabel(),
+        false, // not a weak (water) label
+        first.location.envelopeGeometry()
+      ));
       return new SimplifiedFeatureEntries(simplifiedSubFeatures);
+    } else if (!allWeak) {
+      // No simplifications
+      if (!finalRound) {
+        return new SimplifiedFeatureEntries(Collections.<FeatureEntry>emptyList(), coLocatedSubFeatures);
+      } else {
+        List<ImmutablePair<Object, Geometry>> labeledGeoms = new ArrayList<ImmutablePair<Object, Geometry>>();
+        for (FeatureEntry entry : coLocatedSubFeatures) {
+          labeledGeoms.add(ImmutablePair.of(entry.getLabel(), entry.geometry));
+        }
+        List<ImmutablePair<Object, Geometry>> unionedGeoms =
+          SimplifierUtils.unionByLabel(reference.getGeometryFactory(), labeledGeoms);
+        for (ImmutablePair<Object, Geometry> labeledGeom: unionedGeoms) {
+          simplifiedSubFeatures.add(first.sibling(
+            labeledGeom.getLeft(),
+            false,
+            labeledGeom.getRight()
+          ));
+        }
+        return new SimplifiedFeatureEntries(simplifiedSubFeatures);
+      }
     } else {
-      return new SimplifiedFeatureEntries(Collections.<FeatureEntry>emptyList(), coLocatedSubFeatures);
+      // all labels are weak, emit nothing for this cell
+      return new SimplifiedFeatureEntries(Collections.<FeatureEntry>emptyList());
     }
   }
 
@@ -118,8 +164,10 @@ public class LabeledGridSimplifier {
     List<FeatureEntry> finalSimplified = new ArrayList<FeatureEntry>();
     List<FeatureEntry> currentFeatures = origFeatures;
 
-
-    for(int iteration = 0; iteration < reference.numLevels(); ++iteration) {
+    int numLevels = reference.numLevels();
+    for(int iteration = 0; iteration < numLevels; iteration++) {
+      logger.info("iterativelySimplify: round {} of {}", iteration + 1, numLevels);
+      boolean finalRound = iteration == reference.numLevels() - 1;
       Map<CellLocation, List<FeatureEntry>> subFeatures = new HashMap<CellLocation, List<FeatureEntry>>();
       // Map feature -> subFeature
       for (FeatureEntry feature : currentFeatures) {
@@ -136,9 +184,11 @@ public class LabeledGridSimplifier {
       // Reduce subFeatures -> simpleFeatures
       for (Map.Entry<CellLocation, List<FeatureEntry>> colocatedSubFeatures : subFeatures.entrySet()) {
         SimplifiedFeatureEntries simplified = simplifySubFeatures(
+          reference,
           colocatedSubFeatures.getKey(),
           colocatedSubFeatures.getValue(),
-          simplifySingleLabelCells
+          simplifySingleLabelCells,
+          finalRound
         );
         finalSimplified.addAll(simplified.finished);
         mustIterate.addAll(simplified.toSimplify);
@@ -154,7 +204,6 @@ public class LabeledGridSimplifier {
    * Simplify the set of features.
    * @param reference the location reference (bounding box, etc)
    * @param features the input set of features
-   * @param labelAttribute  the attribute on which to key the simplification decision
    * @param simplifySingleLabelCells when false, no simplification is performed,
    *                                 location index attributes are generated (for fast lookup when loaded),
    *                                 and shapes are split by the requested levelSizes,
@@ -165,17 +214,9 @@ public class LabeledGridSimplifier {
    */
   public static Iterable<FeatureEntry> simplify(
     CellLocationReference reference,
-    Iterable<SimpleFeature> features,
-    String labelAttribute,
+    List<FeatureEntry> features,
     boolean simplifySingleLabelCells
   ) {
-    FeatureEntryFactory featureEntryFactory = new FeatureEntryFactory(reference, labelAttribute);
-    List<FeatureEntry> featureEntries = new ArrayList<FeatureEntry>();
-    // TODO(johnG) parallelize
-    for(SimpleFeature feature: features) {
-      FeatureEntry featureEntry = featureEntryFactory.featureEntry((feature));
-      featureEntries.add(featureEntry);
-    }
-    return iterativelySimplify(reference, featureEntries, simplifySingleLabelCells);
+    return iterativelySimplify(reference, features, simplifySingleLabelCells);
   }
 }

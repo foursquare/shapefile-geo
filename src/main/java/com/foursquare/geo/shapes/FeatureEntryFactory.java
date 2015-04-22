@@ -8,6 +8,8 @@ import com.vividsolutions.jts.geom.Geometry;
 import org.opengis.feature.simple.SimpleFeature;
 
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 class FeatureEntryFactory {
@@ -20,6 +22,13 @@ class FeatureEntryFactory {
     this.initialLocation = new CellLocation(reference);
   }
 
+  public Map.Entry<String, Object> labelEntry(Object label) {
+    return new AbstractMap.SimpleImmutableEntry<String, Object>(
+      labelAttribute,
+      label
+    );
+  }
+
   public FeatureEntry featureEntry(SimpleFeature feature) {
     Geometry geom = (Geometry) feature.getDefaultGeometry();
     CellLocation location = maybeLocationFromFeature(feature);
@@ -27,7 +36,15 @@ class FeatureEntryFactory {
       labelAttribute,
       feature.getAttribute(labelAttribute)
     );
-    return new FeatureEntry(location, labelEntry, geom);
+    return new FeatureEntry(location, labelEntry, false, geom);
+  }
+
+  public FeatureEntry featureEntry(Object label, Geometry geometry) {
+    return new FeatureEntry(initialLocation, labelEntry(label), false, geometry);
+  }
+
+  public FeatureEntry featureEntry(Object label, boolean isWeakLabel, Geometry geometry) {
+    return new FeatureEntry(initialLocation, labelEntry(label), isWeakLabel, geometry);
   }
 
   private CellLocation maybeLocationFromFeature(SimpleFeature feature) {
@@ -37,5 +54,14 @@ class FeatureEntryFactory {
     } else {
       return CellLocation.fromAttributeValue(reference, attrValueOpt);
     }
+  }
+
+  public List<FeatureEntry> featureEntries(Iterable<SimpleFeature> features) {
+    List<FeatureEntry> featureEntries = new ArrayList<FeatureEntry>();
+    for(SimpleFeature feature: features) {
+      FeatureEntry featureEntry = featureEntry((feature));
+      featureEntries.add(featureEntry);
+    }
+    return featureEntries;
   }
 }

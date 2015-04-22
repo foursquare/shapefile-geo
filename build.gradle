@@ -21,6 +21,10 @@ allprojects {
   }
 }
 
+tasks.withType(JavaCompile) {
+  options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+}
+
 test {
   testLogging {
     exceptionFormat = 'full'
@@ -36,5 +40,8 @@ dependencies {
   compile 'org.geotools:gt-main:9.2'
   compile 'org.geotools:gt-shapefile:9.2'
   compile 'org.apache.commons:commons-lang3:3.3.2'
+  compile 'org.slf4j:slf4j-api:1.7.7'
+  compile 'commons-cli:commons-cli:1.2'
   testCompile 'junit:junit:4.10'
+  runtime 'ch.qos.logback:logback-classic:1.1.3'
 }
