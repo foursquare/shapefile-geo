@@ -6,6 +6,25 @@ At Foursquare, we use it to quickly retrieve the timezone of a latitude and long
 
 This is a Java port of the original Scala code written in 2011, in hopes that it will be more useful to others.
 
+
+
+## Usage ##
+```
+usage: com.foursquare.geo.shapes.ShapefileSimplifier original.shp
+                                                     simplified.shp
+                                                     label-attr
+ -d,--debug                        Show debug output.
+ -h,--help                         Show this message.
+    --level-sizes                  Comma-separated branching factor of
+                                   grid per level. Default is 40,2,2,2.
+    --no-geometry-simplification   Skips simplification features to
+                                   rectangle when a cell has features of
+                                   only one label.
+    --water-triangularization      Reduces coastline complexity when a
+                                   cell has  features with more than one
+                                   label.
+```
+
 ## Example ##
 Here is how one might use this utility for timzone reverse geocoding.
 
@@ -20,8 +39,8 @@ Here is how one might use this utility for timzone reverse geocoding.
   ```
   ./compileAndRun com.foursquare.geo.shapes.ShapefileSimplifier world/tz_world.shp tz_world_simplified.shp TZID
   ```
-  The first parameter is main method of the simplifier.  The next is the source we just unzipped, then the destination, and finally the property of interest, `TZID`.  THe output is itself a valid shapefile, so you can take a look:
-  ![timezone simplification](http://f.cl.ly/items/3x291u373t221w2U3U10/simplifier1.gif)
+  The first parameter is main method of the simplifier.  The next is the source we just unzipped, then the destination, and finally the property of interest, `TZID`.  THe output is itself a valid shapefile, so you can take a look with a tool like [QGIS](http://www.qgis.org/en/site/):
+  ![timezone simplification](docs/img/tz_world_nodt.gif)
   The borders between different timezones are preserved with their original detail.  In cells where the timezones are the same, or there is only one timezone, the detail has been removed.
 
 3. We'll load this new Shapefile into the memory of our server.  An example server with a commandline interface is provided so you experiment.
@@ -41,3 +60,11 @@ Here is how one might use this utility for timzone reverse geocoding.
   America/Chicago
   ```
 
+4. One issue with the basic simplification routine is that it doesn't simplify costal shapes with different labels that reside within the same cell.  An example is evident between the US-Canadian border in the northwest corner of Washington state:
+  ![border simplification issue](docs/img/tz_world_nodt_zoom_pnw.gif)
+
+ Another simplification pass can help correct the unnecessarily complex border geometry that persists at these coastal boundaries by using a Delaunay Triangulation to estimate a line that divides the features within the cell based on label:
+   ![border simplification fix](docs/img/tz_world_zoom_pnw.gif)
+
+This simplification pass takes longer, but may be worth it if your application frequently reverse geocodes points near coastal boundaries.  It is enabled by passing `--water-triangularization` to the simplification command above.  As a nice side-effect, the pass also results in slightly more precise cell coverings for island features:
+  ![delaunay tz_world](docs/img/tz_world.gif)
