@@ -6,6 +6,7 @@ At Foursquare, we use it to quickly retrieve the timezone of a latitude and long
 
 This is a Java port of the original Scala code written in 2011, in hopes that it will be more useful to others.
 
+[Javadoc](http://foursquare.github.io/shapefile-geo/docs/javadoc/)
 
 
 ## Usage ##
