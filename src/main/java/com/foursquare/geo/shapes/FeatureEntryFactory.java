@@ -11,15 +11,18 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 class FeatureEntryFactory {
   private String labelAttribute;
   private CellLocation initialLocation;
   private CellLocationReference reference;
+  private ConcurrentHashMap<Object, Object> uniqueLabels;
   public FeatureEntryFactory(CellLocationReference reference, String labelAttribute) {
     this.labelAttribute = labelAttribute;
     this.reference = reference;
     this.initialLocation = new CellLocation(reference);
+    this.uniqueLabels = new ConcurrentHashMap<Object, Object>();
   }
 
   public Map.Entry<String, Object> labelEntry(Object label) {
@@ -39,10 +42,6 @@ class FeatureEntryFactory {
     return new FeatureEntry(location, labelEntry, false, geom);
   }
 
-  public FeatureEntry featureEntry(Object label, Geometry geometry) {
-    return new FeatureEntry(initialLocation, labelEntry(label), false, geometry);
-  }
-
   public FeatureEntry featureEntry(Object label, boolean isWeakLabel, Geometry geometry) {
     return new FeatureEntry(initialLocation, labelEntry(label), isWeakLabel, geometry);
   }
@@ -52,6 +51,7 @@ class FeatureEntryFactory {
     if (attrValueOpt == null) {
       return initialLocation;
     } else {
+      attrValueOpt = uniqueLabels.putIfAbsent(attrValueOpt, attrValueOpt);
       return CellLocation.fromAttributeValue(reference, attrValueOpt);
     }
   }

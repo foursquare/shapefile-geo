@@ -13,7 +13,11 @@ import org.opengis.feature.type.AttributeDescriptor;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The counterpart to {@link com.foursquare.geo.shapes.ShapefileSimplifier}. Once a shapefile
@@ -25,7 +29,8 @@ public class SimplifiedShapefileGeo {
   private SimplifiedShapefileGeo() {
 
   }
-  static class IndexedShapefile implements IndexedValues {
+
+  static class IndexedShapefile extends BaseIndexedValues {
     private Map<CellLocation, IndexedValues> cells;
     private CellLocationReference reference;
     public IndexedShapefile(CellLocationReference reference, Map<CellLocation, IndexedValues> cells) {
@@ -33,12 +38,22 @@ public class SimplifiedShapefileGeo {
       this.reference = reference;
     }
 
-    public Object valueForCoordinate(Coordinate coordinate) {
+    @Override
+    public Object labelForCoordinate(Coordinate coordinate) {
+      return locationValues(coordinate).labelForCoordinate(coordinate);
+    }
+
+    @Override
+    public List<FeatureEntry> colocatedFeatures(Coordinate coordinate) {
+      return locationValues(coordinate).colocatedFeatures(coordinate);
+    }
+
+    private IndexedValues locationValues(Coordinate coordinate) {
       CellLocation location = CellLocation.fromCoordinate(reference, coordinate);
       while (location != null) {
         IndexedValues indexedValues = cells.get(location);
         if (indexedValues != null) {
-          return indexedValues.valueForCoordinate(coordinate);
+          return indexedValues;
         }
         location = location.parent();
       }
@@ -46,7 +61,7 @@ public class SimplifiedShapefileGeo {
     }
   }
 
-  static class ShapeIndexedValues implements IndexedValues {
+  static class ShapeIndexedValues extends BaseIndexedValues {
     private List<FeatureEntry> featureEntries;
     public ShapeIndexedValues() {
       this.featureEntries = new ArrayList<FeatureEntry>();
@@ -66,7 +81,7 @@ public class SimplifiedShapefileGeo {
       }
     }
     @Override
-    public Object valueForCoordinate(Coordinate coordinate) {
+    public Object labelForCoordinate(Coordinate coordinate) {
       Geometry coordGeom = ShapefileUtils.GEOMETRY_FACTORY.createPoint(coordinate);
       for (FeatureEntry entry: featureEntries) {
         if (entry.geometry.covers(coordGeom)) {
@@ -75,17 +90,27 @@ public class SimplifiedShapefileGeo {
       }
       return null;
     }
+
+    @Override
+    public List<FeatureEntry> colocatedFeatures(Coordinate coordinate) {
+      return featureEntries;
+    }
   }
 
-  static class SingleIndexedValue implements IndexedValues {
+  static class SingleIndexedValue extends BaseIndexedValues {
     static final SingleIndexedValue NO_VALUE = new SingleIndexedValue(null);
     private Object value;
     public SingleIndexedValue(Object value) {
       this.value = value;
     }
     @Override
-    public Object valueForCoordinate(Coordinate coordinate) {
+    public Object labelForCoordinate(Coordinate coordinate) {
       return value;
+    }
+
+    @Override
+    public List<FeatureEntry> colocatedFeatures(Coordinate coordinate) {
+      return Collections.emptyList();
     }
   }
 
@@ -95,7 +120,7 @@ public class SimplifiedShapefileGeo {
    * @param labelAttribute the attribute to return in IndexedValues. Pass the same value used for
    *                       ShapefileSimplifier.
    * @param simplifySingleLabelCells generally should be true.  when false, checking the
-   *                                 {@link com.foursquare.geo.shapes.IndexedValues#valueForCoordinate}
+   *                                 {@link com.foursquare.geo.shapes.IndexedValues#labelForCoordinate}
    *                                 will always check containment within a feature within that cell.
    *                                 When true, if all features within a cell have the same value,
    *                                 that value will always be returned without checking feature
@@ -145,14 +170,19 @@ public class SimplifiedShapefileGeo {
     }
     dataStore.dispose();
 
+    IndexedValues indexedValues;
     if (simplifySingleLabelCells) {
       Map<CellLocation, IndexedValues> simpleCellMap = new HashMap<CellLocation, IndexedValues>();
       for (Map.Entry<CellLocation, ShapeIndexedValues> entry: cellMap.entrySet()) {
         simpleCellMap.put(entry.getKey(), entry.getValue().simplified());
       }
-      return new IndexedShapefile(reference, simpleCellMap);
+      indexedValues = new IndexedShapefile(reference, simpleCellMap);
     } else {
-      return new IndexedShapefile(reference, Collections.<CellLocation, IndexedValues>unmodifiableMap(cellMap));
+      indexedValues = new IndexedShapefile(reference, Collections.<CellLocation, IndexedValues>unmodifiableMap(cellMap));
     }
+    // Apply a basic bounding box filter to handle out-of-bounds
+    return indexedValues.with(
+      new LabelFilters.BoundingBoxFilter(reference.getEnvelope())
+    );
   }
 }

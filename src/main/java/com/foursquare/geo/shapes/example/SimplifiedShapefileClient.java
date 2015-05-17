@@ -56,7 +56,7 @@ public class SimplifiedShapefileClient {
         }
       }
       if (valid) {
-        System.out.println(indexedShapes.valueForCoordinate(new Coordinate(lng, lat)));
+        System.out.println(indexedShapes.labelForCoordinate(new Coordinate(lng, lat)));
       } else {
         System.err.println("use format: lat,long");
       }
