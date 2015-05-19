@@ -24,11 +24,6 @@ import java.util.Set;
 public class WaterDelaunayTriangulationSimplifier {
   static final Logger logger = LoggerFactory.getLogger(WaterDelaunayTriangulationSimplifier.class);
 
-  static final int ImpossiblyLowPoints = 2;
-  static final int SuspiciouslyLowPoints = 10;
-  static final double AreaThreshold = 0.0000001;
-
-
   static class LabeledWaterFeature {
     public final Geometry geometry;
     public final Object label;
@@ -211,11 +206,13 @@ public class WaterDelaunayTriangulationSimplifier {
             Geometry labelGeom = geometryFactory.createLineString(
               entry.getValue().toArray(new Coordinate[numCoords])
             ).convexHull();
-            waterFeatures.add(new LabeledWaterFeature(
-              labelGeom,
-              entry.getKey(),
-              true
-            ));
+            if (SimplifierUtils.isValidGeometry(labelGeom)) {
+              waterFeatures.add(new LabeledWaterFeature(
+                labelGeom,
+                entry.getKey(),
+                true
+              ));
+            }
           }
         }
       }
@@ -292,10 +289,7 @@ public class WaterDelaunayTriangulationSimplifier {
     logger.info("Filtering non-valid water features");
     for (int i = 0; i < water.getNumGeometries(); ++i) {
       Geometry geometry = water.getGeometryN(i);
-      int points = geometry.getNumPoints();
-      if (points <= ImpossiblyLowPoints || (points <= SuspiciouslyLowPoints && geometry.getArea() < AreaThreshold)) {
-        logger.info("Dropping geometry {}", geometry);
-      } else {
+      if (SimplifierUtils.isValidGeometry(geometry)) {
         validSubGeometries.add(geometry);
       }
     }

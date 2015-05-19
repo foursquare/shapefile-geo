@@ -171,11 +171,13 @@ public class LabeledGridSimplifier {
       Map<CellLocation, List<FeatureEntry>> subFeatures = new HashMap<CellLocation, List<FeatureEntry>>();
       // Map feature -> subFeature
       for (FeatureEntry feature : currentFeatures) {
-        for (FeatureEntry subFeature : makeSubFeatures(feature)) {
-          if (!subFeatures.containsKey(subFeature.location)) {
-            subFeatures.put(subFeature.location, new ArrayList<FeatureEntry>());
+        if (SimplifierUtils.isValidGeometry(feature.geometry)) {
+          for (FeatureEntry subFeature : makeSubFeatures(feature)) {
+            if (!subFeatures.containsKey(subFeature.location)) {
+              subFeatures.put(subFeature.location, new ArrayList<FeatureEntry>());
+            }
+            subFeatures.get(subFeature.location).add(subFeature);
           }
-          subFeatures.get(subFeature.location).add(subFeature);
         }
       }
 

@@ -15,10 +15,23 @@ import java.util.List;
 import java.util.Map;
 
 class SimplifierUtils {
-  static final Logger logger = LoggerFactory.getLogger(WaterDelaunayTriangulationSimplifier.class);
+  static final Logger logger = LoggerFactory.getLogger(SimplifierUtils.class);
+  static final int ImpossiblyLowPoints = 2;
+  static final int SuspiciouslyLowPoints = 10;
+  static final double AreaThreshold = 0.0000001;
 
   private SimplifierUtils() {
 
+  }
+
+  public static boolean isValidGeometry(Geometry geometry) {
+    int points = geometry.getNumPoints();
+    if (points <= ImpossiblyLowPoints || (points <= SuspiciouslyLowPoints && geometry.getArea() < AreaThreshold)) {
+      logger.info("Dropping geometry {}", geometry);
+      return false;
+    } else {
+      return true;
+    }
   }
 
   public static List<ImmutablePair<Object, Geometry>> unionByLabel(
@@ -30,12 +43,14 @@ class SimplifierUtils {
     for (ImmutablePair<Object, Geometry> feature: labeledFeatures) {
       Object label = feature.getLeft();
       Geometry geom = feature.getRight();
-      List<Geometry> geomList = singleLabelGeometries.get(label);
-      if (geomList == null) {
-        geomList = new ArrayList<Geometry>();
-        singleLabelGeometries.put(label, geomList);
+      if (isValidGeometry(geom)) {
+        List<Geometry> geomList = singleLabelGeometries.get(label);
+        if (geomList == null) {
+          geomList = new ArrayList<Geometry>();
+          singleLabelGeometries.put(label, geomList);
+        }
+        geomList.add(geom);
       }
-      geomList.add(geom);
     }
 
     List<ImmutablePair<Object, Geometry>> unionedGeoms = new ArrayList<ImmutablePair<Object, Geometry>>();
